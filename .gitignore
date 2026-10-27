@@ -1,0 +1,14 @@
+node_modules/
+# [fork] 与本仓库不同：lib/ 入库（本 fork 直接发布预构建产物，便于用 github: 安装），
+# 上游把 lib/ 排除、只靠 npm 发布。
+*.tgz
+.DS_Store
+.worktrees/
+test-results/
+playwright-report/
+
+# 本地临时验证脚本（不进库）
+scripts/.tmp-*
+
+# 本地 agent 工作记录（不入库）
+.vibe/

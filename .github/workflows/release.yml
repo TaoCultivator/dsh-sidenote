@@ -1,0 +1,84 @@
+name: Release
+
+# Publishes dsh-sidenote with npm Trusted Publishing (OIDC).
+# Maintainer procedure and authorization requirements: docs/releasing.md.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # mint the OIDC token npm Trusted Publishing exchanges
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: build · verify · publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release tag matches package.json version
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          echo "package.json version: ${expected#v}"
+          echo "release tag:          ${RELEASE_TAG}"
+          if [ "${RELEASE_TAG}" != "${expected}" ]; then
+            echo "::error::Release tag ${RELEASE_TAG} does not match package.json version ${expected#v} (expected ${expected})."
+            exit 1
+          fi
+
+      - name: Verify release commit is on main
+        if: github.event_name == 'release'
+        run: |
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Release commit must be merged into main through a PR."
+            exit 1
+          fi
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Dry-run publish (validation only)
+        if: github.event_name == 'workflow_dispatch'
+        run: pnpm publish --dry-run --no-git-checks
+
+      # Skip publishing if the package version already exists on npm.
+      - name: Check whether this version is already on npm
+        id: published
+        run: |
+          if npm view "$(node -p "require('./package.json').name")@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: github.event_name == 'release' && steps.published.outputs.exists != 'true'
+        run: pnpm publish --provenance --access public --no-git-checks
