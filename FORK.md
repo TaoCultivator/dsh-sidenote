@@ -49,6 +49,7 @@
 | `tests/annotate-editor.spec.tsx` | 一条用例改为断言「空注解点外部 = 取消」 |
 | `package.json` | `version` 改为 `0.7.6-fork.1`；`repository` / `homepage` / `bugs` 指向本仓库；新增 `forkedFrom` |
 | `.gitignore` | 移除 `lib/`，让预构建产物入库（见下） |
+| `.github/workflows/` | **未随本 fork 发布**：推送所用 token 没有 `workflow` 权限，GitHub 拒绝创建/更新 Actions 工作流文件。其余 `.github/` 模板（PR、ISSUE）照常保留。需要 CI 时可给 token 补 `workflow` scope 后从上游取回这两个文件，或直接在网页上新建。 |
 
 `lib/` 与 `lib/types/` 是**由上述 `src/` 构建出来的产物**，一并入库，这样可以直接从本仓库安装，不需要在本地跑构建链：
 
